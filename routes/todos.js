@@ -189,7 +189,8 @@ function getQueryJSON(mac,from,to){
 	if(from === null || from === undefined || from === ''){
 		//from = now.subtract(1, 'days');
 		//from = from.format('YYYY-MM-DDT00:00');
-		from = new Date(time);
+		//from = new Date(time);
+		from = new Date("2017-09-27  00:00:00");
 		from.setHours(0,0,0,0);
 	}
 	console.log('quer from : '+ from + ' => to : ' + to);
