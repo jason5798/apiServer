@@ -111,11 +111,11 @@ router.route('/datas')
 		}
 		var from = req.query.from;
 		var to = req.query.to;
-		var JSON = getQueryJSON(mac,from,to);
+		var json = getQueryJSON(mac,from,to);
 		var newdata = {},time = [], mPh = [], mDo = [];
 		var mCond = [],mTemp = [],mNtu = [], mVol = [];
 		var arr = [];
-		queryHelper.findDeviceList(JSON,function(err,devices){
+		queryHelper.findDeviceList(json,function(err,devices){
 			if(err || devices.length === 0){
 				return res.json({});
 			}
@@ -182,17 +182,16 @@ function getQueryJSON(mac,from,to){
 		mac = "000000000501070b";
 	}
 	var time =  getCurrentTimestamp();
-	var now =  new Date(time);
+	//var now =  new Date(time);
+	var now = moment.unix(time/1000);
 	if(to === null || to === undefined || to === ''){
-		to = now;
+		to = now.format("YYYY-MM-DDTHH:mm");
 	}
 	if(from === null || from === undefined || from === ''){
 		//from = now.subtract(1, 'days');
-		//from = from.format('YYYY-MM-DDT00:00');
-		//from = new Date(time);
-		from = new Date("2017-09-27  00:00:00");
-		from.setHours(0,0,0,0);
+		from = now.format('YYYY-MM-DDT00:00');
 	}
+	
 	console.log('quer from : '+ from + ' => to : ' + to);
 	return {"macAddr":mac, "from": from, "to": to};
 }
@@ -333,7 +332,7 @@ function splitString(stringToSplit, separator) {
 	console.log("showSize :"+ d);
 	console.log("showPos d_ts : " + d_ts);
 	console.log("setLeft d_tz : " + d_tz);
-	var time = d_ts-(my_tz-d_tz)*3600000;
+	var time = d_ts-(d_tz-my_tz)*3600000;
 	console.log("setW : " + time); //convert function
 	return time;
   }
@@ -350,7 +349,7 @@ function splitString(stringToSplit, separator) {
 	  console.log("showSize :"+ d);
 	  console.log("showPos d_ts : " + d_ts);
 	  console.log("setLeft d_tz : " + d_tz);
-	  var time = d_ts-(my_tz-d_tz)*3600000;
+	  var time = d_ts-(d_tz-my_tz)*3600000;
 	  console.log("setW : " + time); //convert function
 	  return time;
   }

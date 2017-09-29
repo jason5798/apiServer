@@ -49,7 +49,10 @@ function queryDoc (query) {
   return new Promise(function (resolve, reject) {
     database.find(query, function (error, response) {
       if (!error) {
-        console.log('queryDoc success', response)
+        if(response.docs){
+          console.log('query Doc success : ', response.docs.length);
+        }
+        
         resolve(response)
       } else {
         console.log('queryDoc error', error)

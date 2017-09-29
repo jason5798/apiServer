@@ -56,6 +56,7 @@ function findDeviceList(obj, callback){
     }
     deviceobj.selector.recv.$gte = obj.from;
     deviceobj.selector.recv.$lt = obj.to;
+    console.log("Query JSON :\n" +JSON.stringify(deviceobj));
     dbUtil.queryDoc(deviceobj).then(function(value) {
         var deviceList = [];
         if(value.docs.length > 0){
