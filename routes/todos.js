@@ -1,7 +1,7 @@
 var express = require('express');
 var moment = require('moment-timezone');
 var dbUtil =  require('../models/dbUtil.js');
-var queryHelper =  require('../models/queryHelper.js');
+var dbHelper =  require('../models/dbHelper.js');
 var listPath = './public/data/finalList.json';
 var hour = 60*60*1000;
 var JsonFileTools =  require('../models/jsonFileTools.js');
@@ -21,23 +21,26 @@ router.route('/devices')
 		var from = req.query.from;
 		var to = req.query.to;
 		var sort = req.query.sort;
+		
 		if(sort){
 			var arrayOfStrings = splitString(sort,'|');
 		}
 		var page = req.query.page;
 		var per_page = req.query.per_page;
-		var JSON = getQueryJSON(mac,from,to);
-		var JSON2 = {"page": page, "per_page": per_page};
-	    if(tmpDevices.mac && page > 1 || arrayOfStrings[0] !== 'date'){
-			var tableData = getTableData(tmpDevices[mac], JSON2, arrayOfStrings);
+		
+		var json = getQueryJSON(mac,from,to);
+		var json2 = {"page": page, "per_page": per_page};
+		console.log('page information : ' + JSON.stringify(json2));
+		if(tmpDevices.mac && page > 1 || arrayOfStrings[0] !== 'date'){
+			var tableData = getTableData(tmpDevices[mac], json2, arrayOfStrings);
 			return res.json(tableData);
 		}else{
-			queryHelper.findDeviceList(JSON,function(err,lists){
+			dbHelper.findDeviceList(json,function(err,lists){
 				if(err){
 					return res.json({});
 				}
 				tmpDevices[mac] = lists;
-				var tableData = getTableData(lists, JSON2, arrayOfStrings);
+				var tableData = getTableData(lists, json2, arrayOfStrings);
 				return res.json(tableData);
 			});
 		}
@@ -115,37 +118,46 @@ router.route('/datas')
 		var newdata = {},time = [], mPh = [], mDo = [];
 		var mCond = [],mTemp = [],mNtu = [], mVol = [];
 		var arr = [];
-		queryHelper.findDeviceList(json,function(err,devices){
-			if(err || devices.length === 0){
-				return res.json({});
-			}
-
-			var keys = Object.keys(devices[0].information);
-			for(var k = i=0; k<keys.length; k++){
-				arr[k] = [];
-			}
-			for (var i in devices){
-				if(devices[i].information){
-					var data = devices[i].data;
-					time.push(devices[i].recv);
-					
-					for(var j=0; j<keys.length ; j++){
-						//console.log('device : ' + devices[i]['information']);
-						//console.log('key : ' + keys[j] + ' => value : ' + devices[i]['information'][keys[j]]);
-						arr[j].push(devices[i]['information'][keys[j]]);
-					}
-					//console.log('('+ i + ')' +devices[i].recv + ' => ' + JSON.stringify(devices[i].info));
-				}						
-			}
-			//console.log('time: ' + time.length);
-			newdata.time = time;
-			
-			for(var k = i=0; k<keys.length; k++){
-				newdata[keys[k]] = arr[k];
-			}
-			
-			return res.json(newdata);	
-		})
+		var csv = req.query.csv;
+		if(tmpDevices[mac] && csv){
+			var tableData = tmpDevices[mac];
+			//var data = csvData(tableData);
+			return res.json(tableData);
+		} else {
+			dbHelper.findDeviceList(json,function(err,lists){
+				if(err || lists.length === 0){
+					return res.json({});
+				}
+	
+				var keys = Object.keys(lists[0].information);
+				for(var k = i=0; k<keys.length; k++){
+					arr[k] = [];
+				}
+				var devices = lists.sort(dynamicSort('-date'));
+				
+				for (var i in devices){
+					if(devices[i].information){
+						time.push(devices[i].date);
+						
+						for(var j=0; j<keys.length ; j++){
+							//console.log('device : ' + devices[i]['information']);
+							//console.log('key : ' + keys[j] + ' => value : ' + devices[i]['information'][keys[j]]);
+							arr[j].push(devices[i]['information'][keys[j]]);
+						}
+						//console.log('('+ i + ')' +devices[i].recv + ' => ' + JSON.stringify(devices[i].info));
+					}						
+				}
+				//console.log('time: ' + time.length);
+				newdata.time = time;
+				
+				for(var k = i=0; k<keys.length; k++){
+					newdata[keys[k]] = arr[k];
+				}
+				
+				return res.json(newdata);	
+			})
+		}
+		
 	});
 
 router.route('/lists')
@@ -153,7 +165,7 @@ router.route('/lists')
 	.get(function(req, res) {
 		var name    = req.query.name;
 		//JsonFileTools.saveJsonToFile(listPath,json);
-		queryHelper.findFinalList(function(err,list){
+		dbHelper.findFinalList(function(err,list){
 			if(err){
 				return res.json({});
 			}
@@ -164,9 +176,8 @@ router.route('/lists')
 	router.route('/bindlist')
 	
 		.get(function(req, res) {
-			var name = req.query.name;
 
-			queryHelper.findBindDevice(function(err,lists){
+			dbHelper.findBindDevice(function(err,lists){
 				if(err){
 					return res.json({});
 				}
@@ -185,11 +196,13 @@ function getQueryJSON(mac,from,to){
 	//var now =  new Date(time);
 	var now = moment.unix(time/1000);
 	if(to === null || to === undefined || to === ''){
-		to = now.format("YYYY-MM-DDTHH:mm");
+		to = now.format("YYYY-MM-DD HH:mm");
+	}else{
+
 	}
 	if(from === null || from === undefined || from === ''){
 		//from = now.subtract(1, 'days');
-		from = now.format('YYYY-MM-DDT00:00');
+		from = now.format('YYYY-MM-DD 00:00');
 	}
 	
 	console.log('quer from : '+ from + ' => to : ' + to);
@@ -286,25 +299,21 @@ function splitString(stringToSplit, separator) {
 	var str = ''
 	var line = ''
 	var keys = Object.keys(array[0])
-	var target = ['date','data','information']
+	var target = ['項目','日期','資料','溫度','水含量','酸鹼值','電導度'];
 	//For title
 	for (var index in target) {
-		if (line !== '') line += ','
-		if (typeof array[0][target[index]] === 'object') {
-		  line += getObjectStr(array[0][target[index]])
-		} else {
-		  line += array[0][target[index]]
-		}
+		if (line !== '') line += ',';
+		line += target[index];
 	  }
 	str += line + '\r\n'
 	 
 	for (var i = 0; i < keys.length; i++) {
-	  var line = ''
+	  var line = (i+1);
 
 	  for (var index in array[i]) {
 		if (line !== '') line += ','
 		if (typeof array[i][index] === 'object') {
-		  line += this.getJSONValue(array[i][index])
+		  line += getObjectStr(array[i][index])
 		} else {
 		  line += array[i][index]
 		}
@@ -315,12 +324,13 @@ function splitString(stringToSplit, separator) {
   }
 
   function getObjectStr(obj) {
-	var keys = Object.keys(obj)
-	var str = ''
+	var keys = Object.keys(obj);
+	var str = '';
 	for(var index in keys){
-		if (line !== '') line += ','
-		line += keys[index]
+		if (str !== '') str += ',';
+		str += keys[index]
 	}
+	return str;
   }
 
   function getCurrentTimestamp() {
@@ -349,7 +359,7 @@ function splitString(stringToSplit, separator) {
 	  console.log("showSize :"+ d);
 	  console.log("showPos d_ts : " + d_ts);
 	  console.log("setLeft d_tz : " + d_tz);
-	  var time = d_ts-(d_tz-my_tz)*3600000;
+	  var time = d_ts-(my_tz-d_tz)*3600000;
 	  console.log("setW : " + time); //convert function
 	  return time;
   }

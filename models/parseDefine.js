@@ -42,5 +42,5 @@ function getDiffValue(data, diff) {
     } else {
         value = data/diff;
     }
-    return value;
+    return value.toFixed(2);
 }

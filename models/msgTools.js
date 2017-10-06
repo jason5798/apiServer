@@ -1,4 +1,4 @@
-var debug = true;
+var debug = false;
 var moment = require('moment-timezone');
 var ParseDefine =  require('./parseDefine.js');
 var JsonFileTools =  require('./jsonFileTools.js');
@@ -70,15 +70,9 @@ function convertTime(dateStr)
     //var d = new Date();
     var d = new Date(dateStr);
     var d_ts = d.getTime(); //Date.parse('2017-09-12 00:00:00'); //get time stamp
-    var d_offset = d.getTimezoneOffset();
-    var d_tz = d_offset/(-60); //get time zone of system
-    var my_tz = 8; //input time zone of user
     console.log("showSize :"+ d);
     console.log("showPos d_ts : " + d_ts);
-    console.log("setLeft d_tz : " + d_tz);
-    var time = d_ts-(my_tz-d_tz)*3600000;
-    console.log("setW : " + time); //convert function
-    return time;
+    return d_ts;
 }
 
 function getDateString(a){
@@ -99,8 +93,9 @@ function parseMsg(obj) {
     mData = obj.data;
     mMac  = obj.macAddr;
     var timestamp = convertTime(obj.time);
-    mRecv = new Date(timestamp);
-    mDate = getDateString(mRecv);
+    var tMoment = (moment.unix(timestamp/1000)).tz(settings.timezone);
+    mRecv = obj.time;
+    mDate = tMoment.format('YYYY-MM-DD HH:mm:ss');
     
     console.log('mRecv : '+  mRecv);
     console.log('mDate : '+ mDate);
@@ -122,7 +117,7 @@ function parseMsg(obj) {
         mInfo = ParseDefine.getTypeData(mData,parseData);
     }
 
-    var msg = {macAddr:mMac, data:mData, recv:mRecv, date:mDate, extra:mExtra};
+    var msg = {macAddr: mMac, data: mData, time: timestamp, recv: mRecv, date: mDate, extra: mExtra};
     finalList[mMac]=msg;
     
     if(mInfo){

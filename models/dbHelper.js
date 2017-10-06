@@ -12,26 +12,25 @@ var obj2 = {
 var obj_bind_list = {
     "selector": {
      "category": "device"
-      }
+      },
+      "fields": [
+        "macAddr",
+        "position"
+      ]
    };
 
 var deviceobj = {
     "selector": {
       "macAddr": "0000000004000493",
-      "recv": {
+      "date": {
               "$gte": "2017-09-23T10:00",
               "$lt": "2017-09-24T12:00"
           }
     },
     "fields": [
       "date",
-      "recv",
+      "data",
       "information"
-    ],
-    "sort": [
-      {
-        "_id": "asc"
-      }
     ],
     "skip": 0
   }
@@ -54,8 +53,8 @@ function findDeviceList(obj, callback){
     }else{
       deviceobj.selector.macAddr = obj.macAddr;
     }
-    deviceobj.selector.recv.$gte = obj.from;
-    deviceobj.selector.recv.$lt = obj.to;
+    deviceobj.selector.date.$gte = obj.from;
+    deviceobj.selector.date.$lt = obj.to;
     console.log("Query JSON :\n" +JSON.stringify(deviceobj));
     dbUtil.queryDoc(deviceobj).then(function(value) {
         var deviceList = [];
@@ -80,8 +79,19 @@ function findBindDevice(callback){
       });
 }
 
+function addDeviceSetting(json,callback){
+  json.category = 'device';
+  dbUtil.insert(json).then(function(value) {
+      // on fulfillment(已實現時)
+      console.log("#### Insert device setting success :"+value);
+  }, function(reason) {
+      console.log("???? Insert device setting fail :" + reason);
+  }); 
+}
+
 module.exports = {
     findFinalList,
     findDeviceList,
-    findBindDevice
+    findBindDevice,
+    addDeviceSetting
   }
