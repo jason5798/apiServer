@@ -14,7 +14,7 @@ var tmpDevices = {};
 
 router.route('/devices')
 	.get(function(req, res) {
-		var mac    = req.query.mac;
+		var mac = req.query.mac;
 		if(mac === null || mac === undefined || mac === ''){
 			return res.json({});;
 		}
@@ -173,18 +173,76 @@ router.route('/lists')
 		})
 	});
 
-	router.route('/bindlist')
-	
-		.get(function(req, res) {
+router.route('/bindlist')
 
-			dbHelper.findBindDevice(function(err,lists){
-				if(err){
-					return res.json({});
-				}
-				
-				return res.json(lists);
-			})
-		});
+	.get(function(req, res) {
+
+		dbHelper.findBindDevice(function(err,lists){
+			if(err){
+				return res.json({});
+			}
+			
+			return res.json(lists);
+		})
+	});
+
+router.route('/deviceMaps')
+
+	.get(function(req, res) {
+      
+		dbHelper.findDeviceMaps(function(err,lists){
+			if(err || lists.length === 0){
+				return res.json({});
+			}
+			
+			return res.json(lists[0]);
+		})
+	});
+
+
+router.route('/profile')
+    //New profile
+	.post(function(req, res) {
+        var profile = req.body.profile;
+		dbHelper.addProfile(profile, function(result){
+			console.log('result : ' + result);
+			return res.json({result:result});
+		})		
+	})
+
+    //Find profile list
+	.get(function(req, res) {
+		  dbHelper.findProfileList(function(err,lists){
+			  if(err || lists.length === 0){
+				  return res.json([]);
+			  }
+			  
+			  return res.json(lists);
+		  })
+	  })
+	
+	//Update profile
+	.put(function(req, res) {
+        var profile = req.body.profile;
+		dbHelper.updateProfile(profile, function(result){
+			console.log('result : ' + result);
+			return res.json({result:result});
+		})		
+	})
+
+    //Delete profile
+	.delete(function(req, res) {
+		var name = req.body.name;
+	    if(name === null || name === undefined || name === ''){
+			console.log('Delete profile name is empty !!!');
+			return res.json({result:null}); 
+		}
+		dbHelper.delProfile(name, function(result){
+			console.log('result : ' + result);
+			return res.json({result:result});
+		})
+	  })
+
 
 module.exports = router;
 
@@ -292,9 +350,9 @@ function splitString(stringToSplit, separator) {
 	//console.log('The separator is: "' + separator + '"');
 	//console.log('The array has ' + arrayOfStrings.length + ' elements: ' + arrayOfStrings.join(' / '));
 	return arrayOfStrings;
-  }
+}
 
-  function csvData(objArray){
+function csvData(objArray){
 	var array = typeof objArray !== 'object' ? JSON.parse(objArray) : objArray
 	var str = ''
 	var line = ''
@@ -321,9 +379,9 @@ function splitString(stringToSplit, separator) {
 	  str += line + '\r\n'
 	}
 	return str
-  }
+}
 
-  function getObjectStr(obj) {
+function getObjectStr(obj) {
 	var keys = Object.keys(obj);
 	var str = '';
 	for(var index in keys){
@@ -331,9 +389,9 @@ function splitString(stringToSplit, separator) {
 		str += keys[index]
 	}
 	return str;
-  }
+}
 
-  function getCurrentTimestamp() {
+function getCurrentTimestamp() {
 	var d = new Date();
 	var d_ts = d.getTime(); //Date.parse('2017-09-12 00:00:00'); //get time stamp
 	var d_offset = d.getTimezoneOffset();
@@ -345,33 +403,90 @@ function splitString(stringToSplit, separator) {
 	var time = d_ts-(d_tz-my_tz)*3600000;
 	console.log("setW : " + time); //convert function
 	return time;
-  }
+}
 
-  function convertTime(dateStr)
-  {
-	  //method 1 - use convert function
-	  //var d = new Date();
-	  var d = new Date(dateStr);
-	  var d_ts = d.getTime(); //Date.parse('2017-09-12 00:00:00'); //get time stamp
-	  var d_offset = d.getTimezoneOffset();
-	  var d_tz = d_offset/(-60); //get time zone of system
-	  var my_tz = 8; //input time zone of user
-	  console.log("showSize :"+ d);
-	  console.log("showPos d_ts : " + d_ts);
-	  console.log("setLeft d_tz : " + d_tz);
-	  var time = d_ts-(my_tz-d_tz)*3600000;
-	  console.log("setW : " + time); //convert function
-	  return time;
-  }
+function convertTime(dateStr)
+{
+	//method 1 - use convert function
+	//var d = new Date();
+	var d = new Date(dateStr);
+	var d_ts = d.getTime(); //Date.parse('2017-09-12 00:00:00'); //get time stamp
+	var d_offset = d.getTimezoneOffset();
+	var d_tz = d_offset/(-60); //get time zone of system
+	var my_tz = 8; //input time zone of user
+	console.log("showSize :"+ d);
+	console.log("showPos d_ts : " + d_ts);
+	console.log("setLeft d_tz : " + d_tz);
+	var time = d_ts-(my_tz-d_tz)*3600000;
+	console.log("setW : " + time); //convert function
+	return time;
+}
   
-  function getDateString(a){
-	  var year = a.getFullYear();
-	  var month = a.getMonth()+1;
-	  var date = a.getDate();
-	  var hour = a.getHours();
-	  var min = a.getMinutes();
-	  var sec = a.getSeconds();
-	  var time = year + '-' + month + '-' + date + ' ' + hour + ':' + min + ':' + sec ;
-	  return time;
+function getDateString(a){
+	var year = a.getFullYear();
+	var month = a.getMonth()+1;
+	var date = a.getDate();
+	var hour = a.getHours();
+	var min = a.getMinutes();
+	var sec = a.getSeconds();
+	var time = year + '-' + month + '-' + date + ' ' + hour + ':' + min + ':' + sec ;
+	return time;
+}
+  
+//For save notify in edit notify
+function changeNotify(max,min,maxInfo,minInfo,info){
+	var keys = Object.keys(info.fieldName);
+	var isNoSetting = true;
+
+	if(info.notify === undefined){
+		info.notify = {};
 	}
-  
+
+	for(var i = 0;i<max.length;i++){
+
+		if(info.notify[keys[i]] === undefined){
+			info.notify[keys[i]] = {};
+		}
+		if(max[i] != '' ){
+			isNoSetting =false;
+			info.notify[keys[i]]['max'] = max[i];
+			if(maxInfo[i] != '' ){
+				info.notify[keys[i]]['maxInfo'] = maxInfo[i];
+			}else {
+				info.notify[keys[i]]['maxInfo'] = info.fieldName[keys[i]]+'超過最大值';
+			}
+		}else {
+			if(info.notify[keys[i]]['max'] !== undefined){
+				delete info.notify[keys[i]]['max'];
+			}
+			if(info.notify[keys[i]]['maxInfo'] !== undefined){
+				delete info.notify[keys[i]]['maxInfo'];
+			}
+
+		}
+		if(min[i] != '' ){
+			isNoSetting = false;
+			info.notify[keys[i]]['min'] = min[i];
+			if(minInfo[i] != '' ){
+				info.notify[keys[i]]['minInfo'] = minInfo[i];
+			}else {
+				info.notify[keys[i]]['minInfo'] = info.fieldName[keys[i]]+'低於最小值';
+			}
+		}else {
+			if(info.notify[keys[i]]['min'] !== undefined){
+				delete info.notify[keys[i]]['min'];
+			}
+			if(info.notify[keys[i]]['minInfo'] !== undefined){
+				delete info.notify[keys[i]]['minInfo'];
+			}
+		}
+		/*if(flag === false){//No setting then remove setting json
+			delete info.notify[keys[i]];
+		}*/
+	}
+	var keys2 = Object.keys(info.notify);
+	if(isNoSetting){
+		delete info.notify;
+	}
+	return info;
+}

@@ -17,6 +17,7 @@ var flash = require('connect-flash');
 //Jason add on 2017.09.07 for account
 var crypto = require('crypto');
 var dbUtil = require('./models/dbUtil.js');
+var cors = require('cors');
 var app = express();
 
 var port = process.env.PORT || settings.port;
@@ -25,7 +26,7 @@ app.set('port', port);
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(flash());
-
+app.use(cors());
 //app.use(favicon(__dirname + '/public/favicon.ico'));
 app.use(logger('dev'));
 app.use(bodyParser.json());

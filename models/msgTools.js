@@ -155,7 +155,7 @@ function setDeviceMapFromFile() {
         console.log("#### Insert device-map success :"+ JSON.stringify(value));
       }, function(reason) {
         // on rejection(已拒絕時)
-        console.log("???? Insert device-map fail :" + SON.stringify(reason));
+        console.log("???? Insert device-map fail :" + JSON.stringify(reason));
       });
 }
 

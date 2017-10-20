@@ -4,11 +4,26 @@ var obj = {
      "_id": "finalList"
       }
    };
-var obj2 = {
+//For device type name,field name and field parse map
+var mapObj = {
     "selector": {
      "_id": "device-map"
       }
    };
+var profileObj = {
+    "selector": {
+     "category": "profile"
+      },
+    "fields": [
+      "name",
+      "setting"
+    ]
+   };
+var profileObj2 = {
+    "selector": {
+      "category": "profile"
+      }
+};
 var obj_bind_list = {
     "selector": {
      "category": "device"
@@ -89,9 +104,95 @@ function addDeviceSetting(json,callback){
   }); 
 }
 
+function findDeviceMaps(callback){
+  
+  dbUtil.queryDoc(mapObj).then(function(value) {
+      var deviceList = [];
+      if(value.docs.length > 0){
+          deviceList = value.docs;
+      }
+      return callback(null,deviceList);
+    }, function(reason) {
+      return callback(reason);
+    });
+}
+
+function addProfile(json,callback){
+  json.category = 'profile';
+  dbUtil.insert(json).then(function(value) {
+      // on fulfillment(已實現時)
+      console.log("#### Insert profile success :"+value);
+      return callback('ok');
+  }, function(reason) {
+      console.log("???? Insert profile fail :" + reason);
+      return callback('fail');
+  }); 
+}
+
+function delProfile(name,callback){
+  profileObj2.selector.name = name;
+  dbUtil.queryDoc(profileObj2).then(function(value) {
+    var profileList = [];
+    if(value.docs.length > 0){
+      profileList = value.docs;
+    }
+    var profile = profileList[0];
+    dbUtil.removeDoc(profile._id,profile._rev).then(function(value) {
+      return callback('ok');
+    }, function(reason) {
+      return callback(reason);
+    }); 
+  
+  }, function(reason) {
+    return callback(reason);
+  }); 
+}
+
+function updateProfile(newProfile,callback){
+  profileObj2.selector.name = newProfile.name;
+  console.log(profileObj2)
+  dbUtil.queryDoc(profileObj2).then(function(value) {
+    var profileList = [];
+    if(value.docs.length > 0){
+      profileList = value.docs;
+    }
+    var profile = profileList[0];
+    console.log('profile._id : ' + profile._id)
+    profile.setting = newProfile.setting;
+    dbUtil.insert(profile).then(function(value) {
+      // on fulfillment(已實現時)
+      console.log("#### Update profile success :"+ JSON.stringify(value));
+      return callback('ok');
+    }, function(reason) {
+      // on rejection(已拒絕時)
+      console.log("???? Update profile fail :" + reason);
+      return callback(reason);
+    });
+  }, function(reason) {
+    return callback(reason);
+  }); 
+}
+
+function findProfileList(callback){
+  dbUtil.queryDoc(profileObj).then(function(value) {
+      var profileList = [];
+      if(value.docs.length > 0){
+        profileList = value.docs;
+      }
+      return callback(null,profileList);
+    }, function(reason) {
+      return callback(reason);
+    });
+}
+
 module.exports = {
     findFinalList,
     findDeviceList,
     findBindDevice,
-    addDeviceSetting
+    addDeviceSetting,
+    findDeviceMaps,
+    addProfile,
+    delProfile,
+    updateProfile,
+    findProfileList
   }
