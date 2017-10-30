@@ -184,7 +184,39 @@ router.route('/bindlist')
 			
 			return res.json(lists);
 		})
-	});
+	})
+	 
+	//New bind device
+	.post(function(req, res) {
+        var device = req.body.device;
+		dbHelper.addBindDevice(device, function(result){
+			console.log('result : ' + result);
+			return res.json({result:result});
+		})		
+	})
+	
+	//Update bind device
+	.put(function(req, res) {
+        var device = req.body.device;
+		dbHelper.updateBindDevice(device, function(result){
+			console.log('result : ' + result);
+			return res.json({result:result});
+		})		
+	})
+
+    //Delete bind device
+	.delete(function(req, res) {
+		var name = req.body.name;
+	    if(name === null || name === undefined || name === ''){
+			console.log('Delete profile name is empty !!!');
+			return res.json({result:null}); 
+		}
+		dbHelper.delBindDevice(name, function(result){
+			console.log('result : ' + result);
+			return res.json({result:result});
+		})
+	  })
+	
 
 router.route('/deviceMaps')
 

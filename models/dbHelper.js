@@ -29,10 +29,17 @@ var obj_bind_list = {
      "category": "device"
       },
       "fields": [
+        "name",
+        "profileName",
         "macAddr",
         "position"
       ]
    };
+var bindObj2 = {
+    "selector": {
+      "category": "device"
+      }
+};
 
 var deviceobj = {
     "selector": {
@@ -185,6 +192,63 @@ function findProfileList(callback){
     });
 }
 
+function addBindDevice(json,callback){
+  json.category = 'device';
+  dbUtil.insert(json).then(function(value) {
+      // on fulfillment(已實現時)
+      console.log("#### Insert bind device success :"+value);
+      return callback('ok');
+  }, function(reason) {
+      console.log("???? Insert bind device fail :" + reason);
+      return callback('fail');
+  }); 
+}
+
+function delBindDevice(name,callback){
+  bindObj2.selector.name = name;
+  dbUtil.queryDoc(bindObj2).then(function(value) {
+    var bindList = [];
+    if(value.docs.length > 0){
+      bindList = value.docs;
+    }
+    var bindDevice = bindList[0];
+    dbUtil.removeDoc(bindDevice._id,bindDevice._rev).then(function(value) {
+      return callback('ok');
+    }, function(reason) {
+      return callback(reason);
+    }); 
+  
+  }, function(reason) {
+    return callback(reason);
+  }); 
+}
+
+function updateBindDevice(newDevice,callback){
+  bindObj2.selector.name = newDevice.name;
+  console.log('bindObj2 : ' + bindObj2)
+  dbUtil.queryDoc(bindObj2).then(function(value) {
+    var bindList = [];
+    if(value.docs.length > 0){
+      bindList = value.docs;
+    }
+    var bindDevice = bindList[0];
+    console.log('bindDevice._id : ' + bindDevice._id)
+    bindDevice.profileName = newDevice.profileName;
+    bindDevice.position = newDevice.position;
+    dbUtil.insert(bindDevice).then(function(value) {
+      // on fulfillment(已實現時)
+      console.log("#### Update bind device success :"+ JSON.stringify(value));
+      return callback('ok');
+    }, function(reason) {
+      // on rejection(已拒絕時)
+      console.log("???? Update bind device fail :" + reason);
+      return callback(reason);
+    });
+  }, function(reason) {
+    return callback(reason);
+  }); 
+}
+
 module.exports = {
     findFinalList,
     findDeviceList,
@@ -194,5 +258,8 @@ module.exports = {
     addProfile,
     delProfile,
     updateProfile,
+    addBindDevice,
+    delBindDevice,
+    updateBindDevice,
     findProfileList
   }
