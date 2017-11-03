@@ -17,6 +17,7 @@ var flash = require('connect-flash');
 //Jason add on 2017.09.07 for account
 var crypto = require('crypto');
 var dbUtil = require('./models/dbUtil.js');
+// var tools = require('./models/tools.js');
 var cors = require('cors');
 var app = express();
 

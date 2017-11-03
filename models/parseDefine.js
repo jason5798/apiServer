@@ -11,10 +11,14 @@ exports.getDeviceMapRev = function(data,fport) {
     return deviceMapRev;
 }
 
-exports.getTypeData = function(data,obj) {
+exports.getTypeData = function(data,myobj) {
     var info = {};
+    var obj = JSON.parse(JSON.stringify(myobj));
+    delete obj.fieldName;
+    delete obj.typeName;
     
     var keys = Object.keys(obj);
+    
     var count = keys.length;
     for(var i =0;i<count;i++){
         //console.log( keys[i]+' : '+ obj[keys[i]]);

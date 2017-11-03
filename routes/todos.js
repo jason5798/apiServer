@@ -11,9 +11,16 @@ var serverUri = "http:\/\/" +settings.host + ":"
 						+ settings.port + "\/todos\/";
 var debug = true;
 var tmpDevices = {};
+const WebSocket = require('ws');
+var ws = null;
 
+setTimeout( function() {
+	connectWS();
+}, 3000 );
+  
 router.route('/devices')
 	.get(function(req, res) {
+		
 		var mac = req.query.mac;
 		if(mac === null || mac === undefined || mac === ''){
 			return res.json({});;
@@ -115,6 +122,7 @@ router.route('/datas')
 		var from = req.query.from;
 		var to = req.query.to;
 		var json = getQueryJSON(mac,from,to);
+		console.log('Query /todos/datas JSON\n' + JSON.stringify(json));
 		var newdata = {},time = [], mPh = [], mDo = [];
 		var mCond = [],mTemp = [],mNtu = [], mVol = [];
 		var arr = [];
@@ -176,12 +184,11 @@ router.route('/lists')
 router.route('/bindlist')
 
 	.get(function(req, res) {
-
 		dbHelper.findBindDevice(function(err,lists){
 			if(err){
 				return res.json({});
 			}
-			
+			// Return result
 			return res.json(lists);
 		})
 	})
@@ -191,6 +198,9 @@ router.route('/bindlist')
         var device = req.body.device;
 		dbHelper.addBindDevice(device, function(result){
 			console.log('result : ' + result);
+			// To change node-red global data
+			sendWSCMD('update-bindList');
+			// Return result
 			return res.json({result:result});
 		})		
 	})
@@ -200,6 +210,9 @@ router.route('/bindlist')
         var device = req.body.device;
 		dbHelper.updateBindDevice(device, function(result){
 			console.log('result : ' + result);
+			// To change node-red global data
+			sendWSCMD('update-bindList');
+			// Return result
 			return res.json({result:result});
 		})		
 	})
@@ -213,6 +226,9 @@ router.route('/bindlist')
 		}
 		dbHelper.delBindDevice(name, function(result){
 			console.log('result : ' + result);
+			// To change node-red global data
+			sendWSCMD('update-bindList');
+			// Return result
 			return res.json({result:result});
 		})
 	  })
@@ -238,6 +254,9 @@ router.route('/profile')
         var profile = req.body.profile;
 		dbHelper.addProfile(profile, function(result){
 			console.log('result : ' + result);
+			// To change node-red global data
+			sendWSCMD('update-profileList');
+			// Return result
 			return res.json({result:result});
 		})		
 	})
@@ -248,7 +267,7 @@ router.route('/profile')
 			  if(err || lists.length === 0){
 				  return res.json([]);
 			  }
-			  
+			  // Return result
 			  return res.json(lists);
 		  })
 	  })
@@ -258,6 +277,9 @@ router.route('/profile')
         var profile = req.body.profile;
 		dbHelper.updateProfile(profile, function(result){
 			console.log('result : ' + result);
+			// To change node-red global data
+			sendWSCMD('update-profileList');
+			// Return result
 			return res.json({result:result});
 		})		
 	})
@@ -271,6 +293,9 @@ router.route('/profile')
 		}
 		dbHelper.delProfile(name, function(result){
 			console.log('result : ' + result);
+			// To change node-red global data
+			sendWSCMD('update-profileList');
+			// Return result
 			return res.json({result:result});
 		})
 	  })
@@ -521,4 +546,50 @@ function changeNotify(max,min,maxInfo,minInfo,info){
 		delete info.notify;
 	}
 	return info;
+}
+
+function connectWS() {
+	if(ws === null) {
+		ws = new WebSocket('ws://localhost:3000/ws/dataupdate', {
+			perMessageDeflate: false
+		  });
+		ws.onopen = function () {
+			var obj = {'id': 'dataupdate'};
+			var getRequest = JSON.stringify(obj);
+			console.log('getRequest type : ' + typeof getRequest + ' :  ' + getRequest);
+			// ws.send(getRequest);
+		}
+		ws.onclose   = function()  {
+			console.log('WS connection closed: '+new Date().toUTCString());
+			ws = null;
+		}
+		ws.onerror  = function(){
+			console.log("WS connection error");
+		}
+	}
+}
+
+function sendWSCMD(cmd) {
+	if(ws !== null){
+		console.log("ws.onopen OK ");
+		toSendCMD (cmd);
+	} else {
+		connectWS();
+		return new Promise(function (resolve, reject) {
+			setTimeout( function() {
+				toSendCMD (cmd);
+			}, 3000 );
+		  })
+	}
+}	
+	
+
+function toSendCMD (cmd) {
+	var obj = {"id":cmd};
+	var objString = JSON.stringify(obj);
+	console.log("getRequest type : "+ typeof(objString)+" : "+objString);
+	console.log("ws.onopen : "+ objString);
+	ws.send(objString);     // Request ui status from NR
+	console.log("sent change_type requeset");
+
 }

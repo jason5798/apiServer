@@ -3,6 +3,7 @@ var moment = require('moment-timezone');
 var ParseDefine =  require('./parseDefine.js');
 var JsonFileTools =  require('./jsonFileTools.js');
 var dbUtil =  require('./dbUtil.js');
+var dbHelper =  require('./dbHelper.js');
 var settings =  require('../settings.js');
 var mData,mMac,mRecv,mDate,mType,mExtra,mInfo,mTimestamp;
 var obj;
@@ -15,6 +16,9 @@ var mapPath = './public/data/parseMap.json';
 var finalList = {},deviceMap = {};
 var finalListRev = '',deviceMapRev = '';
 var count_map = {};//For filter repeater message key:mac+type value:tag
+// Jason add for notify filter
+var profiles = {};
+var hasProfileDevices = {};
 //Save user choice device type,GW MAC
 var obj = {
     "selector": {
@@ -32,6 +36,8 @@ var obj2 = {
 function init(){
     updateFinalList();
     updateDeviceMap();
+    updateProfileList();
+    updateBindList();
 }
 
 function updateFinalList(){
@@ -59,7 +65,57 @@ function updateDeviceMap(){
       }, function(reason) {
         // on rejection(已拒絕時)
         console.log("#### updateDeviceMap fail  : "+JSON.stringify(reason));
-      });
+      });function updateDeviceMap(){
+        dbUtil.queryDoc(obj2).then(function(value) {
+            // on fulfillment(已實現時)
+            if(value.docs.length > 0){
+                deviceMap = value.docs[0];
+                deviceMapRev = deviceMap._rev;
+            }
+            //console.log("#### finalList : "+JSON.stringify(finalList));
+          }, function(reason) {
+            // on rejection(已拒絕時)
+            console.log("#### updateDeviceMap fail  : "+JSON.stringify(reason));
+          });
+    }
+}
+
+function updateProfileList(){
+    dbHelper.findProfileList(function(err,lists){
+        if(err){
+            return res.json({});
+        }
+        profiles = updateProfiles(lists);
+    })
+}
+
+function updateProfiles (lists) {
+    var obj = {}
+    for (var i in lists) {
+        // console.log('lists [' + i + '] : ' + JSON.stringify(lists[i]));
+        obj[lists[i].name] = lists[i].setting;
+    }
+    return obj;
+}
+
+function updateBindDevices (lists) {
+    var obj = {}
+    for (var i in lists) {
+        console.log('lists [' + i + '] : ' + JSON.stringify(lists[i]));
+        if (lists[i].profileName !== '') {
+            obj[lists[i].macAddr] = lists[i];
+        }  
+    }
+    return obj;
+}
+
+function updateBindList(){
+    dbHelper.findBindDevice(function(err,lists){
+        if(err){
+            return res.json({});
+        }
+        hasProfileDevices = updateBindDevices(lists);
+    })
 }
 
 init();
@@ -106,9 +162,9 @@ function parseMsg(obj) {
               'fport': obj.fport,
               'frameCnt': obj.frameCnt,
               'channel': obj.channel};
-    if(isSameCountCheck(mMac,obj.frameCnt) && debug === false){
+    /* if(isSameCountCheck(mMac,obj.frameCnt) && debug === false){
         return null;
-    }
+    } */
    
     //Parse data
     if(mExtra.fport>0 ){
@@ -142,6 +198,86 @@ function setFinalList(list) {
 
 function getFinalList() {
     return finalList;
+}
+
+
+
+function geHasProfiledDevices() {
+    return hasProfileDevices ;
+}
+
+
+function getProfiles() {
+    return profiles;
+}
+
+function getNotifyMessage (obj) {
+    var mac = obj.macAddr;
+    var info = obj.information;
+    var device = hasProfileDevices[mac];
+    if(device === undefined){
+        return null;
+    }
+    let profileName = device.profileName;
+    let date = obj.date;
+    let name = device.name;
+    var msg = {'name': name, 'mac': mac, 'date': date};
+    
+    if (profileName === undefined) {
+        return null;
+    } else {
+        var setting = profiles[profileName];
+        if (setting === undefined) {
+            return null;
+        } else {
+            var nMsg = getMessage(setting, info);
+            if (nMsg) {
+                msg.message = nMsg;
+                return msg;
+            } else {
+                return null;
+            } 
+        }
+    }
+}
+
+function getMessage(setting, info) {
+    console.log('setting : ' + JSON.stringify(setting));
+    console.log('info : ' + JSON.stringify(info));
+    var keys = Object.keys(info);
+    var message = '';
+    for (var i in keys) {
+        let key = keys[i];
+        let value = info[key];
+        // Jason fix issue : 'temperature' set to wrong word 'temprature' -- start
+        if (key === 'temprature') {
+            key = 'temperature';
+        }
+        if(value === undefined) {
+            value = info[key];
+        }
+        // Jason fix issue : 'temperature' set to wrong word 'temprature' -- end
+        console.log('keys [' + i + '] : ' + key);
+        let set = setting[key];
+        
+        console.log( key + ' : ' + value + ' => ' + JSON.stringify(set));
+        if (set.max !== '' && Number(set.max) < value) {
+            if(set.maxInfo === '') {
+                message = message + set.name + '超過最大值' + '\n';
+            } else {
+                message = message + set.maxInfo + '\n';  
+            }
+          } 
+          if (set.min !== '' && Number(set.min) > value) {
+            if(set.minInfo === '') {
+                message = message + set.name + '低於最小值' + '\n';
+            } else {
+                message = message + set.minInfo + '\n';  
+            }
+          } 
+          console.log('Message : ' + message);
+    }
+    return message;
 }
 
 function setDeviceMap(mapObj) {
@@ -336,11 +472,16 @@ module.exports = {
     saveFinalListToFile,
     setFinalList,
     getFinalList,
+    getProfiles,
+    getNotifyMessage,
+    geHasProfiledDevices,
     parseMsg,
     updateDeviceMap,
     updateFinalList,
     setDeviceMap,
     setDeviceMapFromFile,
-    getDeviceMap
+    getDeviceMap,
+    updateProfileList,
+    updateBindList
   }
 
