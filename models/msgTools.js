@@ -233,12 +233,25 @@ function getNotifyMessage (obj) {
             var nMsg = getMessage(setting, info);
             if (nMsg) {
                 msg.message = nMsg;
+                saveToEventLog(msg);
                 return msg;
             } else {
                 return null;
             } 
         }
     }
+}
+
+function saveToEventLog (msg) {
+    var msgObj = {name: msg.name, date:msg.date, common: msg.mac, message: msg.message, };
+    msgObj.category = "log";
+    msgObj.type = "event";
+    dbUtil.insert(msgObj).then(function(value) {
+        // on fulfillment(已實現時)
+        console.log("#### Insert device data success :"+value);
+    }, function(reason) {
+        console.log("???? Insert device data fail :" + reason);
+    }); 
 }
 
 function getMessage(setting, info) {

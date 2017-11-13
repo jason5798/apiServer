@@ -56,6 +56,38 @@ var deviceobj = {
     ],
     "skip": 0
   }
+var log_event_obj = {
+    "selector": {
+      "category": "log",
+      "type": "event",
+      "date": {
+              "$gte": "2017-09-23T10:00",
+              "$lt": "2017-09-24T12:00"
+          }
+      },
+      "fields": [
+        "date",
+        "name",
+        "common",
+        "message"
+      ]
+   };
+
+   var deviceobj2 = {
+    "selector": {
+      "macAddr": "0000000004000493",
+      "time": {
+              "$gte": "2017-09-23T10:00",
+              "$lt": "2017-09-24T12:00"
+          }
+    },
+    "fields": [
+      "date",
+      "data",
+      "information"
+    ],
+    "skip": 0
+  }
 
 function findFinalList(callback){
     dbUtil.queryDoc(obj).then(function(value) {
@@ -69,24 +101,52 @@ function findFinalList(callback){
       });
 }
 
+function findDeviceList2(obj, callback){
+  var myobj = JSON.parse(JSON.stringify(deviceobj2)); 
+  
+  
+  if(obj.macAddr && obj.macAddr.length === 8){
+    myobj.selector.macAddr = '00000000' + obj.macAddr;
+  }else{
+    myobj.selector.macAddr = obj.macAddr;
+  }
+  // var fromTimestamp = (new Date(obj.from)).getTime();
+  // var toTimestamp = (new Date(obj.to)).getTime();
+  myobj.selector.time.$gte = Number(obj.from);
+  myobj.selector.time.$lt = Number(obj.to);
+  console.log('findDeviceList myobj : ' + JSON.stringify(myobj));
+  dbUtil.queryDoc(myobj).then(function(value) {
+      var deviceList = [];
+      if(value.docs.length > 0){
+          deviceList = value.docs;
+      }
+      return callback(null,deviceList);
+    }, function(reason) {
+      return callback(reason);
+    });
+}
+
 function findDeviceList(obj, callback){
-    if(obj.macAddr && obj.macAddr.length === 8){
-      deviceobj.selector.macAddr = '00000000' + obj.macAddr;
-    }else{
-      deviceobj.selector.macAddr = obj.macAddr;
-    }
-    deviceobj.selector.date.$gte = obj.from;
-    deviceobj.selector.date.$lt = obj.to;
-    console.log("Query JSON :\n" +JSON.stringify(deviceobj));
-    dbUtil.queryDoc(deviceobj).then(function(value) {
-        var deviceList = [];
-        if(value.docs.length > 0){
-            deviceList = value.docs;
-        }
-        return callback(null,deviceList);
-      }, function(reason) {
-        return callback(reason);
-      });
+  var myobj = JSON.parse(JSON.stringify(deviceobj)); 
+  
+  
+  if(obj.macAddr && obj.macAddr.length === 8){
+    myobj.selector.macAddr = '00000000' + obj.macAddr;
+  }else{
+    myobj.selector.macAddr = obj.macAddr;
+  }
+  myobj.selector.date.$gte = obj.from;
+  myobj.selector.date.$lt = obj.to;
+  console.log('findDeviceList myobj : ' + JSON.stringify(myobj));
+  dbUtil.queryDoc(myobj).then(function(value) {
+      var deviceList = [];
+      if(value.docs.length > 0){
+          deviceList = value.docs;
+      }
+      return callback(null,deviceList);
+    }, function(reason) {
+      return callback(reason);
+    });
 }
 
 function findBindDevice(callback){
@@ -137,8 +197,10 @@ function addProfile(json,callback){
 }
 
 function delProfile(name,callback){
-  profileObj2.selector.name = name;
-  dbUtil.queryDoc(profileObj2).then(function(value) {
+  var myobj = JSON.parse(JSON.stringify(profileObj2)); 
+  myobj.selector.name = name;
+  console.log('delProfile myobj : ' + JSON.stringify(myobj));
+  dbUtil.queryDoc(myobj).then(function(value) {
     var profileList = [];
     if(value.docs.length > 0){
       profileList = value.docs;
@@ -156,9 +218,11 @@ function delProfile(name,callback){
 }
 
 function updateProfile(newProfile,callback){
-  profileObj2.selector.name = newProfile.name;
-  console.log(profileObj2)
-  dbUtil.queryDoc(profileObj2).then(function(value) {
+  var myobj = JSON.parse(JSON.stringify(profileObj2)); 
+  myobj.selector.name = newProfile.name;
+  console.log('updateProfile myobj : ' + JSON.stringify(myobj));
+  
+  dbUtil.queryDoc(myobj).then(function(value) {
     var profileList = [];
     if(value.docs.length > 0){
       profileList = value.docs;
@@ -205,8 +269,10 @@ function addBindDevice(json,callback){
 }
 
 function delBindDevice(name,callback){
-  bindObj2.selector.name = name;
-  dbUtil.queryDoc(bindObj2).then(function(value) {
+  var myobj = JSON.parse(JSON.stringify(bindObj2)); 
+  myobj.selector.name = newDevice.name;
+  console.log('delBindDevice myobj : ' + JSON.stringify(myobj));
+  dbUtil.queryDoc(myobj).then(function(value) {
     var bindList = [];
     if(value.docs.length > 0){
       bindList = value.docs;
@@ -224,9 +290,10 @@ function delBindDevice(name,callback){
 }
 
 function updateBindDevice(newDevice,callback){
-  bindObj2.selector.name = newDevice.name;
-  console.log('bindObj2 : ' + bindObj2)
-  dbUtil.queryDoc(bindObj2).then(function(value) {
+  var myobj = JSON.parse(JSON.stringify(bindObj2)); 
+  myobj.selector.name = newDevice.name;
+  console.log('updateBindDevice myobj : ' + JSON.stringify(myobj));
+  dbUtil.queryDoc(myobj).then(function(value) {
     var bindList = [];
     if(value.docs.length > 0){
       bindList = value.docs;
@@ -249,6 +316,29 @@ function updateBindDevice(newDevice,callback){
   }); 
 }
 
+function findEventLists(obj, callback){
+  var myobj = JSON.parse(JSON.stringify(log_event_obj));
+  if (obj.macAddr) {
+    if(obj.macAddr && obj.macAddr.length === 8){
+      myobj.selector.common = '00000000' + obj.macAddr;
+    }else{
+      myobj.selector.common = obj.macAddr;
+    }
+  }
+  myobj.selector.date.$gte = obj.from;
+  myobj.selector.date.$lt = obj.to;
+  console.log(new Date() + " findEventLists Query JSON :\n" +JSON.stringify(myobj));
+  dbUtil.queryDoc(myobj).then(function(value) {
+      var deviceList = [];
+      if(value.docs.length > 0){
+          deviceList = value.docs;
+      }
+      return callback(null,deviceList);
+    }, function(reason) {
+      return callback(reason);
+    });
+}
+
 module.exports = {
     findFinalList,
     findDeviceList,
@@ -261,5 +351,7 @@ module.exports = {
     addBindDevice,
     delBindDevice,
     updateBindDevice,
-    findProfileList
+    findProfileList,
+    findEventLists,
+    findDeviceList2
   }

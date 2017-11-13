@@ -7,54 +7,30 @@ var hour = 60*60*1000;
 var JsonFileTools =  require('../models/jsonFileTools.js');
 var settings = require('../settings');
 var router = express.Router();
+// for local test
 var serverUri = "http:\/\/" +settings.host + ":" 
 						+ settings.port + "\/todos\/";
+// for bluemix production
+var bluemix_server = "https:\/\/" + settings.hostname + "\/todos\/";
 var debug = true;
-var tmpDevices = {};
-const WebSocket = require('ws');
-var ws = null;
+var tmpDatas = {};
+var mqtt = require('mqtt');
+var hostname = '119.81.189.47';
+var portNumber = 1883;
+var mytopic= 'mqtt';
 
-setTimeout( function() {
-	connectWS();
-}, 3000 );
+// For app get device list
+router.route('/deviceList')
+	.get(function(req, res) {		
+		getDataList(req, res, 3);
+	});
   
 router.route('/devices')
-	.get(function(req, res) {
-		
-		var mac = req.query.mac;
-		if(mac === null || mac === undefined || mac === ''){
-			return res.json({});;
-		}
-		var from = req.query.from;
-		var to = req.query.to;
-		var sort = req.query.sort;
-		
-		if(sort){
-			var arrayOfStrings = splitString(sort,'|');
-		}
-		var page = req.query.page;
-		var per_page = req.query.per_page;
-		
-		var json = getQueryJSON(mac,from,to);
-		var json2 = {"page": page, "per_page": per_page};
-		console.log('page information : ' + JSON.stringify(json2));
-		if(tmpDevices.mac && page > 1 || arrayOfStrings[0] !== 'date'){
-			var tableData = getTableData(tmpDevices[mac], json2, arrayOfStrings);
-			return res.json(tableData);
-		}else{
-			dbHelper.findDeviceList(json,function(err,lists){
-				if(err){
-					return res.json({});
-				}
-				tmpDevices[mac] = lists;
-				var tableData = getTableData(lists, json2, arrayOfStrings);
-				return res.json(tableData);
-			});
-		}
+	.get(function(req, res) {		
+		getDataList(req, res, 1);
 	});
 
 router.route('/devices/:mac')
-
 	// get the bear with that id
 	.get(function(req, res) {
 		var mac    = req.query.mac;
@@ -121,14 +97,14 @@ router.route('/datas')
 		}
 		var from = req.query.from;
 		var to = req.query.to;
-		var json = getQueryJSON(mac,from,to);
+		var json = getQueryJSON(mac, from, to, 1);
 		console.log('Query /todos/datas JSON\n' + JSON.stringify(json));
 		var newdata = {},time = [], mPh = [], mDo = [];
 		var mCond = [],mTemp = [],mNtu = [], mVol = [];
 		var arr = [];
 		var csv = req.query.csv;
-		if(tmpDevices[mac] && csv){
-			var tableData = tmpDevices[mac];
+		if(tmpDatas[mac] && csv){
+			var tableData = tmpDatas[mac];
 			//var data = csvData(tableData);
 			return res.json(tableData);
 		} else {
@@ -300,32 +276,119 @@ router.route('/profile')
 		})
 	  })
 
-
+router.route('/log/event')
+	.get(function(req, res) {		
+		getDataList(req, res, 2);
+	});
 module.exports = router;
-
-function getQueryJSON(mac,from,to){
-	if(mac === null || mac === undefined || mac === ''){
-		mac = "000000000501070b";
+/* getDataList for all of data table
+*  flag: 1 for find devices
+*  flag: 2 for find event log
+*  sort: "date|desc"
+*/
+function getDataList(req, res, flag){
+	var mac = req.query.mac;
+	var from = req.query.from;
+	var to = req.query.to;
+	if (mac === undefined && (flag === 1 || flag === 3)) {
+		// log sometime not need mac
+		return res.json({});
 	}
+	var sort = req.query.sort;
+	var arrayOfStrings = [];
+	if(flag !== 3 && sort !== undefined){
+		// For web query
+		arrayOfStrings = splitString(sort,'|');
+	} else {
+		// For app auery
+		arrayOfStrings.push('date');
+		arrayOfStrings.push(sort);
+	}
+	var page = req.query.page;
+	var per_page = req.query.per_page;
+
+	if(Number(per_page) > 100){
+		return res.json({});;
+	}
+	
+	var json = getQueryJSON(mac, from, to, flag);
+	var json2 = {"page": page, "per_page": per_page};
+	console.log('page information : ' + JSON.stringify(json2));
+	var target = '';
+	if(flag === 1 ) {
+		target = mac;
+	} else if (flag === 2 && mac === undefined) {
+        target = 'event';
+	} else if (flag === 2 && mac !== undefined) {
+        target = 'event-' + mac;
+	} if(flag === 3 ) { // For app get device list
+        target = 'app-' + mac;
+	}
+	console.log('tmpDatas.target : ' + tmpDatas.target);
+	if(tmpDatas.target !== undefined && page > 1 ){
+		var tableData = getTableData(mac, tmpDatas[target], json2, arrayOfStrings);
+		return res.json(tableData);
+	} else if (flag === 1) { // For get event list
+		dbHelper.findDeviceList(json,function(err,lists){
+			if(err){
+				return res.json({});
+			}
+			tmpDatas[target] = lists;
+			var tableData = getTableData(mac, lists, json2, arrayOfStrings);
+			return res.json(tableData);
+		});
+	} else if (flag === 2){ // For get event log
+		dbHelper.findEventLists(json,function(err,lists){
+			if(err){
+				return res.json({});
+			}
+			tmpDatas[target] = lists;
+			var tableData = getTableData(mac, lists, json2, arrayOfStrings);
+			return res.json(tableData);
+		});
+	} else if (flag === 3){ // For app get device list
+		dbHelper.findDeviceList2(json,function(err,lists){
+			if(err){
+				return res.json({});
+			}
+			tmpDatas[target] = lists;
+			var tableData = getTableData(mac, lists, json2, arrayOfStrings);
+			return res.json(tableData);
+		});
+	}
+}
+
+function getQueryJSON(mac,from,to,flag){
 	var time =  getCurrentTimestamp();
 	//var now =  new Date(time);
 	var now = moment.unix(time/1000);
-	if(to === null || to === undefined || to === ''){
+	var last = moment.unix(time/1000);
+	if (to === undefined && flag === 1){
 		to = now.format("YYYY-MM-DD HH:mm");
-	}else{
-
+	} else if (to === undefined && flag === 3){
+		to = now.format("YYYY-MM-DD HH:mm");
+		to = convertTime(to);
+		console.log('to timestamp : ' + to + '\n date : ' + new Date(to));
 	}
-	if(from === null || from === undefined || from === ''){
-		//from = now.subtract(1, 'days');
+	if (from === undefined && flag === 1){
 		from = now.format('YYYY-MM-DD 00:00');
-	}
-	
-	console.log('quer from : '+ from + ' => to : ' + to);
-	return {"macAddr":mac, "from": from, "to": to};
+	} else if (from === undefined && flag === 2){
+		from = last.subtract(1, 'days');
+		from = from.format('YYYY-MM-DD HH:MM');
+	} else if (from === undefined && flag === 3){
+		from = last.subtract(1, 'days');
+		from = from.format('YYYY-MM-DD HH:MM');
+		from = convertTime(from);
+		console.log('from timestamp : ' + from + '\n date : ' + new Date(from));
+	} 
+
+	var json = {'macAddr':mac, 'from': from, 'to': to}; 
+	console.log('quer from mac : '+mac + " , from " + from + ' => to : ' + to);
+	return json;
 }
 
 //ASC 代表結果會以由小往大的順序列出，而 DESC 代表結果會以由大往小的順序列
-function getTableData(lists,obj,sort){
+function getTableData(mac, lists, obj, sort){
 	var json = {};
 	json.total = lists.length;
 	json.per_page = Number(obj.per_page);
@@ -343,13 +406,15 @@ function getTableData(lists,obj,sort){
 	if(json.current_page === 1 || json.last_page === 1){
 		json.prev_page_url = null;
 	}else {
-		json.prev_page_url = serverUri+"devices?per_page="+json.per_page+"&page="+(json.current_page-1);
+		json.prev_page_url = bluemix_server +'devices?mac=' + mac + '&sort=' + sort
+			'&per_page=' + json.per_page + '&page=' + (json.current_page-1);
 	}
 
 	if(json.last_page === 1 || json.current_page === json.last_page){
 		json.next_page_url = null;
 	}else {
-		json.next_page_url = serverUri+"devices?per_page="+json.per_page+"&page="+(json.current_page+1);
+		json.next_page_url = bluemix_server + 'devices?mac=' + mac + '&sort=' + sort
+			'&per_page=' + json.per_page + '&page=' + (json.current_page+1);
 	}
 	
 	json.from = ((json.current_page -1 )*json.per_page)+1;
@@ -362,6 +427,7 @@ function getTableData(lists,obj,sort){
 		newLists.push(lists[i]);
 	}
 	json.data = newLists;
+	console.log(new Date() + ' : getTableData \n' + JSON.stringify(json));
 	return json;
 }
 
@@ -464,6 +530,17 @@ function getCurrentTimestamp() {
 
 function convertTime(dateStr)
 {
+    //method 1 - use convert function
+    //var d = new Date();
+    var d = new Date(dateStr);
+    var d_ts = d.getTime(); //Date.parse('2017-09-12 00:00:00'); //get time stamp
+    console.log("showSize :"+ d);
+    console.log("showPos d_ts : " + d_ts);
+    return d_ts;
+}
+
+/* function convertTime(dateStr)
+{
 	//method 1 - use convert function
 	//var d = new Date();
 	var d = new Date(dateStr);
@@ -477,7 +554,7 @@ function convertTime(dateStr)
 	var time = d_ts-(my_tz-d_tz)*3600000;
 	console.log("setW : " + time); //convert function
 	return time;
-}
+} */
   
 function getDateString(a){
 	var year = a.getFullYear();
@@ -548,48 +625,19 @@ function changeNotify(max,min,maxInfo,minInfo,info){
 	return info;
 }
 
-function connectWS() {
-	if(ws === null) {
-		ws = new WebSocket('ws://localhost:3000/ws/dataupdate', {
-			perMessageDeflate: false
-		  });
-		ws.onopen = function () {
-			var obj = {'id': 'dataupdate'};
-			var getRequest = JSON.stringify(obj);
-			console.log('getRequest type : ' + typeof getRequest + ' :  ' + getRequest);
-			// ws.send(getRequest);
-		}
-		ws.onclose   = function()  {
-			console.log('WS connection closed: '+new Date().toUTCString());
-			ws = null;
-		}
-		ws.onerror  = function(){
-			console.log("WS connection error");
-		}
-	}
-}
-
 function sendWSCMD(cmd) {
-	if(ws !== null){
-		console.log("ws.onopen OK ");
-		toSendCMD (cmd);
-	} else {
-		connectWS();
-		return new Promise(function (resolve, reject) {
-			setTimeout( function() {
-				toSendCMD (cmd);
-			}, 3000 );
-		  })
-	}
-}	
+	var options = {
+		port:portNumber,
+		host: hostname,
+		protocolId: 'MQIsdp',
+		protocolVersion: 3
+	};
 	
-
-function toSendCMD (cmd) {
-	var obj = {"id":cmd};
-	var objString = JSON.stringify(obj);
-	console.log("getRequest type : "+ typeof(objString)+" : "+objString);
-	console.log("ws.onopen : "+ objString);
-	ws.send(objString);     // Request ui status from NR
-	console.log("sent change_type requeset");
-
-}
+	var client = mqtt.connect(options);
+	
+	// publish 'Hello mqtt' to 'test'
+	client.publish('agri_mqtt', cmd);
+	
+	// terminate the client
+	client.end();
+}	
