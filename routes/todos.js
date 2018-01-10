@@ -15,8 +15,6 @@ var bluemix_server = "https:\/\/" + settings.hostname + "\/todos\/";
 var debug = true;
 var tmpDatas = {};
 var mqtt = require('mqtt');
-var hostname = '119.81.189.47';
-var portNumber = 1883;
 var mytopic= 'mqtt';
 
 // For app get device list
@@ -158,9 +156,14 @@ router.route('/lists')
 	});
 
 router.route('/bindlist')
-
+    
 	.get(function(req, res) {
-		dbHelper.findBindDevice(function(err,lists){
+		var create = req.query.create;
+		let sort = null
+		if (create === 'asc' || create === 'desc') {
+			sort = [{create: create}];
+		}
+		dbHelper.findBindDevice(sort, function(err,lists){
 			if(err){
 				return res.json({});
 			}
@@ -239,14 +242,19 @@ router.route('/profile')
 
     //Find profile list
 	.get(function(req, res) {
-		  dbHelper.findProfileList(function(err,lists){
-			  if(err || lists.length === 0){
-				  return res.json([]);
-			  }
-			  // Return result
-			  return res.json(lists);
-		  })
-	  })
+		var create = req.query.create;
+		let sort = null
+		if (create === 'asc' || create === 'desc') {
+			sort = [{create: create}];
+		}
+		dbHelper.findProfileList(sort, function(err,lists){
+			if(err || lists.length === 0){
+				return res.json([]);
+			}
+			// Return result
+			return res.json(lists);
+		})
+	})
 	
 	//Update profile
 	.put(function(req, res) {
@@ -275,6 +283,63 @@ router.route('/profile')
 			return res.json({result:result});
 		})
 	  })
+
+router.route('/zone')
+	  //New zone
+	  .post(function(req, res) {
+		  var zone = req.body.zone;
+		  dbHelper.addZone(zone, function(result){
+			  console.log('result : ' + result);
+			  // To change node-red global data
+			  // sendWSCMD('update-zoneList');
+			  // Return result
+			  return res.json({result:result});
+		  })		
+	  })
+  
+	  //Find zone list
+	  .get(function(req, res) {
+			var create = req.query.create;
+			let sort = null
+			if (create === 'asc' || create === 'desc') {
+				sort = [{create: create}];
+			}
+			dbHelper.findZoneList(sort, function(err,lists){
+				if(err || lists.length === 0){
+					return res.json([]);
+				}
+				// Return result
+				return res.json(lists);
+			})
+		})
+	  
+	  //Update zone
+	  .put(function(req, res) {
+		  var zone = req.body.zone;
+		  dbHelper.updateZone(zone, function(result){
+			  console.log('result : ' + result);
+			  // To change node-red global data
+			  // sendWSCMD('update-zoneList');
+			  // Return result
+			  return res.json({result:result});
+		  })		
+	  })
+  
+	  //Delete zone
+	  .delete(function(req, res) {
+		  var name = req.body.name;
+		  if(name === null || name === undefined || name === ''){
+			  console.log('Delete profile name is empty !!!');
+			  return res.json({result:null}); 
+		  }
+		  dbHelper.delZone(name, function(result){
+			  console.log('result : ' + result);
+			  // To change node-red global data
+			  // sendWSCMD('update-zoneList');
+			  // Return result
+			  return res.json({result:result});
+		  })
+		})
 
 router.route('/log/event')
 	.get(function(req, res) {		
@@ -381,7 +446,8 @@ function getQueryJSON(mac,from,to,flag){
 		from = convertTime(from);
 		console.log('from timestamp : ' + from + '\n date : ' + new Date(from));
 	} 
-
+	// device info 指定開始時間 - sensor無法送資料時用
+    // from = "2018-01-01 00:00:00";
 	var json = {'macAddr':mac, 'from': from, 'to': to}; 
 	console.log('quer from mac : '+mac + " , from " + from + ' => to : ' + to);
 	return json;
@@ -627,8 +693,8 @@ function changeNotify(max,min,maxInfo,minInfo,info){
 
 function sendWSCMD(cmd) {
 	var options = {
-		port:portNumber,
-		host: hostname,
+		port:settings.MQTT_BROKER,
+		host: settings.MQTT_PORT,
 		protocolId: 'MQIsdp',
 		protocolVersion: 3
 	};

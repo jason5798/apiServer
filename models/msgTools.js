@@ -81,9 +81,9 @@ function updateDeviceMap(){
 }
 
 function updateProfileList(){
-    dbHelper.findProfileList(function(err,lists){
+    dbHelper.findProfileList(null, function(err,lists){
         if(err){
-            return res.json({});
+            profiles = {};
         }
         profiles = updateProfiles(lists);
     })
@@ -110,9 +110,9 @@ function updateBindDevices (lists) {
 }
 
 function updateBindList(){
-    dbHelper.findBindDevice(function(err,lists){
+    dbHelper.findBindDevice(null, function(err,lists){
         if(err){
-            return res.json({});
+            hasProfileDevices = {};
         }
         hasProfileDevices = updateBindDevices(lists);
     })

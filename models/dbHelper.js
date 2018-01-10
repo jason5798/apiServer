@@ -33,6 +33,11 @@ var obj_bind_list = {
         "profileName",
         "macAddr",
         "position"
+      ],
+      "sort": [
+         {
+            "create": "asc"
+         }
       ]
    };
 var bindObj2 = {
@@ -89,6 +94,28 @@ var log_event_obj = {
     "skip": 0
   }
 
+  var zoneObj = {
+    "selector": {
+       "category": "zone"
+    },
+    "fields": [
+       "_id",
+       "name",
+       "deviceList",
+       "create"
+    ],
+    "sort": [
+       {
+          "create": "asc"
+       }
+    ]
+ };
+var zoneObj2 = {
+    "selector": {
+      "category": "zone"
+      }
+};
+
 function findFinalList(callback){
     dbUtil.queryDoc(obj).then(function(value) {
         var finalList = [];
@@ -129,7 +156,6 @@ function findDeviceList2(obj, callback){
 function findDeviceList(obj, callback){
   var myobj = JSON.parse(JSON.stringify(deviceobj)); 
   
-  
   if(obj.macAddr && obj.macAddr.length === 8){
     myobj.selector.macAddr = '00000000' + obj.macAddr;
   }else{
@@ -144,21 +170,24 @@ function findDeviceList(obj, callback){
           deviceList = value.docs;
       }
       return callback(null,deviceList);
-    }, function(reason) {
+  }, function(reason) {
       return callback(reason);
-    });
+  });
 }
 
-function findBindDevice(callback){
-    dbUtil.queryDoc(obj_bind_list).then(function(value) {
-        var bindList = [];
-        if(value.docs.length > 0){
-            bindList = value.docs;
-        }
-        return callback(null,bindList);
-      }, function(reason) {
-        return callback(reason);
-      });
+function findBindDevice(sort, callback){
+  if (sort) {
+    obj_bind_list.sort = sort;
+  }
+  dbUtil.queryDoc(obj_bind_list).then(function(value) {
+    var bindList = [];
+    if(value.docs.length > 0){
+        bindList = value.docs;
+    }
+    return callback(null,bindList);
+  }, function(reason) {
+      return callback(reason);
+  });
 }
 
 function addDeviceSetting(json,callback){
@@ -186,6 +215,7 @@ function findDeviceMaps(callback){
 
 function addProfile(json,callback){
   json.category = 'profile';
+  json.create = new Date();
   dbUtil.insert(json).then(function(value) {
       // on fulfillment(已實現時)
       console.log("#### Insert profile success :"+value);
@@ -244,7 +274,10 @@ function updateProfile(newProfile,callback){
   }); 
 }
 
-function findProfileList(callback){
+function findProfileList(sort, callback){
+  if (sort) {
+    profileObj.sort = sort;
+  }
   dbUtil.queryDoc(profileObj).then(function(value) {
       var profileList = [];
       if(value.docs.length > 0){
@@ -258,6 +291,7 @@ function findProfileList(callback){
 
 function addBindDevice(json,callback){
   json.category = 'device';
+  json.create = new Date();
   dbUtil.insert(json).then(function(value) {
       // on fulfillment(已實現時)
       console.log("#### Insert bind device success :"+value);
@@ -270,7 +304,7 @@ function addBindDevice(json,callback){
 
 function delBindDevice(name,callback){
   var myobj = JSON.parse(JSON.stringify(bindObj2)); 
-  myobj.selector.name = newDevice.name;
+  myobj.selector.name = name;
   console.log('delBindDevice myobj : ' + JSON.stringify(myobj));
   dbUtil.queryDoc(myobj).then(function(value) {
     var bindList = [];
@@ -339,6 +373,82 @@ function findEventLists(obj, callback){
     });
 }
 
+function addZone(json,callback){
+  json.category = 'zone';
+  json.create = new Date();
+  dbUtil.insert(json).then(function(value) {
+      // on fulfillment(已實現時)
+      console.log("#### Insert zone success :"+value);
+      return callback('ok');
+  }, function(reason) {
+      console.log("???? Insert zone fail :" + reason);
+      return callback('fail');
+  }); 
+}
+
+function delZone(name,callback){
+  var myobj = JSON.parse(JSON.stringify(zoneObj2)); 
+  myobj.selector.name = name;
+  console.log('delProfile myobj : ' + JSON.stringify(myobj));
+  dbUtil.queryDoc(myobj).then(function(value) {
+    var zoneList = [];
+    if(value.docs.length > 0){
+      zoneList = value.docs;
+    }
+    var zone = zoneList[0];
+    dbUtil.removeDoc(zone._id,zone._rev).then(function(value) {
+      return callback('ok');
+    }, function(reason) {
+      return callback(reason);
+    }); 
+  
+  }, function(reason) {
+    return callback(reason);
+  }); 
+}
+
+function updateZone(newZone,callback){
+  var myobj = JSON.parse(JSON.stringify(zoneObj2)); 
+  myobj.selector.name = newZone.name;
+  console.log('updateZone myobj : ' + JSON.stringify(myobj));
+  
+  dbUtil.queryDoc(myobj).then(function(value) {
+    var zoneList = [];
+    if(value.docs.length > 0){
+      zoneList = value.docs;
+    }
+    var zone = zoneList[0];
+    console.log('zone._id : ' + zone._id)
+    zone.deviceList = newZone.deviceList;
+    dbUtil.insert(zone).then(function(value) {
+      // on fulfillment(已實現時)
+      console.log("#### Update zone success :"+ JSON.stringify(value));
+      return callback('ok');
+    }, function(reason) {
+      // on rejection(已拒絕時)
+      console.log("???? Update zone fail :" + reason);
+      return callback(reason);
+    });
+  }, function(reason) {
+    return callback(reason);
+  }); 
+}
+
+function findZoneList(sort, callback){
+  if (sort) {
+    zoneObj.sort = sort;
+  }
+  dbUtil.queryDoc(zoneObj).then(function(value) {
+      var profileList = [];
+      if(value.docs.length > 0){
+        profileList = value.docs;
+      }
+      return callback(null,profileList);
+    }, function(reason) {
+      return callback(reason);
+    });
+}
+
 module.exports = {
     findFinalList,
     findDeviceList,
@@ -353,5 +463,9 @@ module.exports = {
     updateBindDevice,
     findProfileList,
     findEventLists,
-    findDeviceList2
+    findDeviceList2,
+    addZone,
+    delZone,
+    updateZone,
+    findZoneList
   }

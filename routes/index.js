@@ -34,11 +34,11 @@ function findUnitsAndShowSetting(req,res,isUpdate){
 			//console.log("#### finalList : "+JSON.stringify(finalList));
 		}, function(reason) {
 		// on rejection(已拒絕時)
-		});
+	});
 }
 
 module.exports = function(app) {
-  //app.get('/red', checkLogin);
+  app.get('/red', checkLogin);
   app.get('/', checkLogin);
   app.get('/', function (req, res) {
   	    
